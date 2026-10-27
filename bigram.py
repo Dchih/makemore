@@ -106,3 +106,58 @@ for name in names:
     total_pair_num += pair_num
 
 print("平均负对数似然：", total_log_sum / total_pair_num)
+print("字符 e 的前 10 个转移概率：", P[5][:10])
+
+print("计数模型生成的姓名：")
+for _ in range(10):
+    print(generate_name(g)[0])
+
+# 将每个相邻字符对转换为一个训练样本。
+F = torch.nn.functional
+generator = torch.Generator().manual_seed(2247483647)
+W = torch.randn((27, 27), generator=generator, requires_grad=True)
+xs = []
+ys = []
+for name in split_line_list:
+    turned = ["."] + list(name) + ["."]
+    for start, end in zip(turned, turned[1:]):
+        xs.append(char_to_index[start])
+        ys.append(char_to_index[end])
+
+t_xs = torch.tensor(xs)
+t_ys = torch.tensor(ys)
+xenc = F.one_hot(t_xs, num_classes=27).float()
+
+# 用全量字符对训练网络，loss 包含负对数似然和 L2 正则项。
+for _ in range(1000):
+    logits = xenc @ W
+    counts = logits.exp()
+    probs = counts / counts.sum(1, keepdim=True)
+    loss = -torch.log(probs[torch.arange(len(t_ys)), t_ys]).mean() + 0.01 * (W**2).mean()
+    W.grad = None
+    loss.backward()
+    W.data -= 50 * W.grad
+
+
+def generate_name_by_net(gen):
+    """使用训练后的权重生成姓名，遇到边界标记时结束。"""
+    ix = 0
+    final_char = ""
+
+    while True:
+        logits = W[ix]
+        counts = logits.exp()
+        probs = counts / counts.sum()
+        index = torch.multinomial(probs, num_samples=1, replacement=True, generator=gen)
+        ix = index.item()
+        next_char = index_to_char[ix]
+        if next_char == ".":
+            break
+        final_char += next_char
+
+    return final_char
+
+
+print("神经网络生成的姓名：")
+for _ in range(10):
+    print(generate_name_by_net(generator))
