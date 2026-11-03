@@ -10,6 +10,12 @@ char_set = sorted(set(''.join(split_lines)))
 contexts = ['a', 'n', 'n']
 g = torch.Generator().manual_seed(2147483647)
 C = torch.randn((27, 2), requires_grad=True, generator=g)
+W1 = torch.randn((6, 100), requires_grad=True)
+B1 = torch.randn((100,), requires_grad=True)
+W2 = torch.randn((100, 27), requires_grad=True)
+B2 = torch.randn((27,), requires_grad=True)
+
+parameters = list([C, W1, B1, W2, B2])
 
 block_size = 3
 
@@ -69,34 +75,29 @@ dim_N_6 = []
 #     conc = torch.cat(tmp)
 #     dim_N_6.append(conc)
 
-emb = C[tx]
-dim_N_6 = torch.cat([emb[:, 0, :], emb[:, 1, :], emb[:, 2, :]], dim=1)
-
 #最终写法，当前最优解
 # dim_N_6 = C[tx].view(-1, 6)
 
-# print(dim_N_6[:3])
+for _ in range(10000):
+    batch_indices = torch.randint(0, len(tx), (32,))
+    batch_x = tx[batch_indices]
+    batch_y = ty[batch_indices]
 
-W1 = torch.randn((6, 100), requires_grad=True)
-B1 = torch.randn((100,), requires_grad=True)
+    emb = C[batch_x]
+    dim_N_6 = torch.cat([emb[:, 0, :], emb[:, 1, :], emb[:, 2, :]], dim=1)
+    hidden = torch.tanh(dim_N_6 @ W1 + B1)
+    logits = hidden @ W2 + B2
+    F = torch.nn.functional
+    loss = F.cross_entropy(logits, batch_y)
+    for p in parameters:
+        p.grad = None
+    loss.backward()
+    for p in parameters:
+        p.data -= 0.1 * p.grad
 
-hidden = torch.tanh(dim_N_6 @ W1 + B1)
-hidden
-
-print(hidden)
-
-W2 = torch.randn((100, 27), requires_grad=True)
-B2 = torch.randn((27,), requires_grad=True)
-
-logits = hidden @ W2 + B2
-logits
-
-F = torch.nn.functional
-loss = F.cross_entropy(logits, ty)
 loss
-
-a = torch.tensor([-100, -3, 0, 100]).float()
-b = torch.tensor(2)
-result = a.exp() / a.exp().sum(0, keepdim=True)
-print(result)
-print(F.cross_entropy(a, b))
+# a = torch.tensor([-100, -3, 0, 100]).float()
+# b = torch.tensor(2)
+# result = a.exp() / a.exp().sum(0, keepdim=True)
+# print(result)
+# print(F.cross_entropy(a, b))
