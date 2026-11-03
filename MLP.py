@@ -7,9 +7,15 @@ with open("names.txt", "r+") as file:
 split_lines = contents.splitlines()
 char_set = sorted(set(''.join(split_lines)))
 
+F = torch.nn.functional
 contexts = ['a', 'n', 'n']
 g = torch.Generator().manual_seed(2147483647)
 C = torch.randn((27, 2), requires_grad=True, generator=g)
+W1 = torch.randn((6, 100), requires_grad=True)
+B1 = torch.randn((100,), requires_grad=True)
+W2 = torch.randn((100, 27), requires_grad=True)
+B2 = torch.randn((27,), requires_grad=True)
+ct = list([C, W1, B1, W2, B2])
 
 block_size = 3
 
@@ -69,34 +75,39 @@ dim_N_6 = []
 #     conc = torch.cat(tmp)
 #     dim_N_6.append(conc)
 
-emb = C[tx]
-dim_N_6 = torch.cat([emb[:, 0, :], emb[:, 1, :], emb[:, 2, :]], dim=1)
+# emb = C[tx]
+# dim_N_6 = torch.cat([emb[:, 0, :], emb[:, 1, :], emb[:, 2, :]], dim=1)
 
 #最终写法，当前最优解
 # dim_N_6 = C[tx].view(-1, 6)
 
 # print(dim_N_6[:3])
 
-W1 = torch.randn((6, 100), requires_grad=True)
-B1 = torch.randn((100,), requires_grad=True)
+final_loss = None
+for _ in range(10000):
+    i_seed = torch.randint(0, len(X), (32,))
+    ix = tx[i_seed]
+    iy = ty[i_seed]
+    dim_N_6 = C[ix].view(-1, 6)
+    hidden = torch.tanh(dim_N_6 @ W1 + B1)
+    logits = hidden @ W2 + B2
+    loss = F.cross_entropy(logits, iy)
+    final_loss = loss
+    for s in ct:
+        s.grad = None
+    loss.backward()
+    for s in ct:
+        s.data -= 0.1 * s.grad
 
+dim_N_6 = C[tx].view(-1, 6)
 hidden = torch.tanh(dim_N_6 @ W1 + B1)
-hidden
-
-print(hidden)
-
-W2 = torch.randn((100, 27), requires_grad=True)
-B2 = torch.randn((27,), requires_grad=True)
-
 logits = hidden @ W2 + B2
-logits
+loss2 = F.cross_entropy(logits, ty)
 
-F = torch.nn.functional
-loss = F.cross_entropy(logits, ty)
-loss
-
-a = torch.tensor([-100, -3, 0, 100]).float()
-b = torch.tensor(2)
-result = a.exp() / a.exp().sum(0, keepdim=True)
-print(result)
-print(F.cross_entropy(a, b))
+print("finished")
+print(final_loss, loss2)
+# a = torch.tensor([-100, -3, 0, 100]).float()
+# b = torch.tensor(2)
+# result = a.exp() / a.exp().sum(0, keepdim=True)
+# print(result)
+# print(F.cross_entropy(a, b))
