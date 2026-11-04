@@ -15,7 +15,7 @@ W1 = torch.randn((6, 100), requires_grad=True)
 B1 = torch.randn((100,), requires_grad=True)
 W2 = torch.randn((100, 27), requires_grad=True)
 B2 = torch.randn((27,), requires_grad=True)
-ct = list([C, W1, B1, W2, B2])
+parameters = list([C, W1, B1, W2, B2])
 
 block_size = 3
 
@@ -85,19 +85,19 @@ dim_N_6 = []
 
 final_loss = None
 for _ in range(10000):
-    i_seed = torch.randint(0, len(X), (32,))
-    ix = tx[i_seed]
-    iy = ty[i_seed]
-    dim_N_6 = C[ix].view(-1, 6)
+    batch_indices = torch.randint(0, len(tx), (32,))
+    batch_x = tx[batch_indices]
+    batch_y = ty[batch_indices]
+    dim_N_6 = C[batch_x].view(-1, 6)
     hidden = torch.tanh(dim_N_6 @ W1 + B1)
     logits = hidden @ W2 + B2
-    loss = F.cross_entropy(logits, iy)
+    loss = F.cross_entropy(logits, batch_y)
     final_loss = loss
-    for s in ct:
-        s.grad = None
+    for p in parameters:
+        p.grad = None
     loss.backward()
-    for s in ct:
-        s.data -= 0.1 * s.grad
+    for p in parameters:
+        p.data -= 0.1 * p.grad
 
 dim_N_6 = C[tx].view(-1, 6)
 hidden = torch.tanh(dim_N_6 @ W1 + B1)
