@@ -1,13 +1,21 @@
 # 本地开发环境
 
+## macOS
+
+双击 `start-jupyter.command`，会使用项目的 `.venv` 环境启动 JupyterLab，并自动打开浏览器。脚本所在目录就是 Notebook 的文件根目录。
+
+首选地址为 `http://127.0.0.1:8889/lab`；端口被占用时会自动更换，实际地址以启动窗口输出为准。保留启动窗口；关闭服务可在窗口按 Ctrl+C，并按提示确认。
+
+## Windows
+
 环境：Python 3.13，项目独立虚拟环境 `.venv`。
 
-## 打开 Jupyter
+### 打开 Jupyter
 
 双击 `start-jupyter.bat`，会打开 JupyterLab。选择 `Python (makemore)` 内核，然后打开 `bigram.ipynb` 或 `rewrite_bigram.ipynb`。
 保留启动窗口；关闭服务可在窗口按 Ctrl+C。
 
-## 命令行
+### 命令行
 
 双击 `open-python.bat` 打开已激活环境的终端。运行：
 
@@ -21,7 +29,7 @@ python bigram.py
 .\.venv\Scripts\python.exe bigram.py
 ```
 
-## GPU
+### GPU
 
 目前安装 PyTorch 2.10.0 CPU 版（已验证通过本机应用控制策略），可直接运行仓库示例。CUDA 版本安装包下载较慢，未安装 GPU 支持。检查：
 
@@ -33,7 +41,7 @@ if torch.cuda.is_available(): print(torch.cuda.get_device_name(0))
 
 原仓库示例默认使用 CPU。使用 GPU 时需将模型和张量显式放到 `cuda` 设备。
 
-## 路径和依赖
+### 路径和依赖
 
 Jupyter 从项目根目录启动，因此 `names.txt` 可以直接读取。
 `requirements-lock.txt` 记录安装时的依赖版本。
