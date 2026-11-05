@@ -1,23 +1,25 @@
 import os
 import torch
+import random
+import matplotlib.pyplot as plt
+F = torch.nn.functional
 
 with open("names.txt", "r+") as file:
     contents = file.read()
 
 split_lines = contents.splitlines()
+random.shuffle(split_lines)
 char_set = sorted(set(''.join(split_lines)))
 
-F = torch.nn.functional
-contexts = ['a', 'n', 'n']
 g = torch.Generator().manual_seed(2147483647)
 C = torch.randn((27, 2), requires_grad=True, generator=g)
-W1 = torch.randn((6, 100), requires_grad=True)
-B1 = torch.randn((100,), requires_grad=True)
-W2 = torch.randn((100, 27), requires_grad=True)
-B2 = torch.randn((27,), requires_grad=True)
-parameters = list([C, W1, B1, W2, B2])
-
+W1 = torch.randn((6, 100), requires_grad=True, generator=g)
+B1 = torch.randn((100,), requires_grad=True, generator=g)
+W2 = torch.randn((100, 27), requires_grad=True, generator=g)
+B2 = torch.randn((27,), requires_grad=True, generator=g)
 block_size = 3
+
+parameters = list([C, W1, B1, W2, B2])
 
 ch2i = {}
 i2ch = {}
@@ -28,46 +30,36 @@ for i, v in enumerate(char_set):
     ch2i[v] = i + 1
     i2ch[i + 1] = v
 
-combine = []
-for v in contexts:
-    index = ch2i[v]
-    lines = C[index]
-    combine += lines
+def convert_names(names):
+    converted = []
+    X = []
+    Y = []
+    for v in names:
+        added = list(v)
+        context = ['.'] * block_size
+        for target in added + ['.']:
+            nums = []
+            for c in context:
+                nums.append(ch2i[c])
+            X.append(nums)
+            Y.append(ch2i[target])
+            converted.append((context, target))
+            context = context[1:] + [target]
+    tx = torch.tensor(X)
+    ty = torch.tensor(Y)
+    return tx, ty
 
-converted = []
-X = []
-Y = []
-for v in split_lines:
-    added = list(v)
-    context = ['.'] * block_size
-    for target in added + ['.']:
-        nums = []
-        for c in context:
-            nums.append(ch2i[c])
-        X.append(nums)
-        Y.append(ch2i[target])
-        converted.append((context, target))
-        context = context[1:] + [target]
+train_set = int(0.8 * len(split_lines))
+dev_set = train_set + int(0.1 * len(split_lines))
+test_set = dev_set + int(0.1 * len(split_lines))
 
-tx = torch.tensor(X)
-ty = torch.tensor(Y)
-
-# print(converted[:10])
-# print(tx)
-# print(ty)
-# print(tx.shape)
-
-# print(len(split_lines))
-# total = 0
-# for i, v in enumerate(split_lines):
-#     total += len(v)
-# print( total + len(split_lines))
-# print(C[5].shape)
-# print(C[[5, 13, 13]], C[[5, 13, 13]].shape)
+Xtr, Ytr = convert_names(split_lines[0:train_set])
+Xdev, Ydev = convert_names(split_lines[train_set:dev_set])
+Xtest, Ytest = convert_names(split_lines[dev_set:test_set])
 
 torch.cat([C[5], C[13], C[13]])
-
 dim_N_6 = []
+
 # for x in tx[3:4]:
 #     tmp = []
 #     for i in x:
@@ -83,31 +75,39 @@ dim_N_6 = []
 
 # print(dim_N_6[:3])
 
-final_loss = None
-for _ in range(10000):
-    batch_indices = torch.randint(0, len(tx), (32,))
-    batch_x = tx[batch_indices]
-    batch_y = ty[batch_indices]
+# lre = torch.linspace(-3, 0, 1000)
+# lrs = 10 ** lre
+lossi = []
+for i in range(10000):
+    batch_indices = torch.randint(0, len(Xtr), (32,))
+    batch_x = Xtr[batch_indices]
+    batch_y = Ytr[batch_indices]
     dim_N_6 = C[batch_x].view(-1, 6)
     hidden = torch.tanh(dim_N_6 @ W1 + B1)
     logits = hidden @ W2 + B2
     loss = F.cross_entropy(logits, batch_y)
-    final_loss = loss
+    lossi.append(loss.item())
     for p in parameters:
         p.grad = None
     loss.backward()
-    for p in parameters:
-        p.data -= 0.1 * p.grad
+    with torch.no_grad():
+        for p in parameters:
+            # p.data -= lrs[i] * p.grad
+            p.data -= 0.01 * p.grad
 
-dim_N_6 = C[tx].view(-1, 6)
+dim_N_6 = C[Xtr].view(-1, 6)
 hidden = torch.tanh(dim_N_6 @ W1 + B1)
 logits = hidden @ W2 + B2
-loss2 = F.cross_entropy(logits, ty)
+loss2 = F.cross_entropy(logits, Ytr)
+print(loss2)
 
-print("finished")
-print(final_loss, loss2)
-# a = torch.tensor([-100, -3, 0, 100]).float()
-# b = torch.tensor(2)
-# result = a.exp() / a.exp().sum(0, keepdim=True)
-# print(result)
-# print(F.cross_entropy(a, b))
+dim_N_6_dev = C[Xdev].view(-1, 6)
+hidden_dev = torch.tanh(dim_N_6_dev @ W1 + B1)
+logits_dev = hidden_dev @ W2 + B2
+loss_dev = F.cross_entropy(logits_dev, Ydev)
+print(loss_dev)
+
+plt.plot(lre, lossi)
+plt.xlabel("log10(learning rate)")
+plt.ylabel("batch loss")
+plt.show()
