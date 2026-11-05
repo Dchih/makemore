@@ -3,6 +3,7 @@ import torch
 import random
 import matplotlib.pyplot as plt
 F = torch.nn.functional
+torch.set_num_threads(1)
 
 with open("names.txt", "r+") as file:
     contents = file.read()
@@ -12,10 +13,10 @@ random.shuffle(split_lines)
 char_set = sorted(set(''.join(split_lines)))
 
 g = torch.Generator().manual_seed(2147483647)
-C = torch.randn((27, 2), requires_grad=True, generator=g)
-W1 = torch.randn((6, 100), requires_grad=True, generator=g)
-B1 = torch.randn((100,), requires_grad=True, generator=g)
-W2 = torch.randn((100, 27), requires_grad=True, generator=g)
+C = torch.randn((27, 10), requires_grad=True, generator=g)
+W1 = torch.randn((30, 300), requires_grad=True, generator=g)
+B1 = torch.randn((300,), requires_grad=True, generator=g)
+W2 = torch.randn((300, 27), requires_grad=True, generator=g)
 B2 = torch.randn((27,), requires_grad=True, generator=g)
 block_size = 3
 
@@ -53,12 +54,13 @@ train_set = int(0.8 * len(split_lines))
 dev_set = train_set + int(0.1 * len(split_lines))
 test_set = dev_set + int(0.1 * len(split_lines))
 
+
 Xtr, Ytr = convert_names(split_lines[0:train_set])
 Xdev, Ydev = convert_names(split_lines[train_set:dev_set])
 Xtest, Ytest = convert_names(split_lines[dev_set:test_set])
 
-torch.cat([C[5], C[13], C[13]])
 dim_N_6 = []
+
 
 # for x in tx[3:4]:
 #     tmp = []
@@ -82,7 +84,7 @@ for i in range(10000):
     batch_indices = torch.randint(0, len(Xtr), (32,))
     batch_x = Xtr[batch_indices]
     batch_y = Ytr[batch_indices]
-    dim_N_6 = C[batch_x].view(-1, 6)
+    dim_N_6 = C[batch_x].view(-1, 30)
     hidden = torch.tanh(dim_N_6 @ W1 + B1)
     logits = hidden @ W2 + B2
     loss = F.cross_entropy(logits, batch_y)
@@ -95,19 +97,19 @@ for i in range(10000):
             # p.data -= lrs[i] * p.grad
             p.data -= 0.01 * p.grad
 
-dim_N_6 = C[Xtr].view(-1, 6)
+dim_N_6 = C[Xtr].view(-1, 30)
 hidden = torch.tanh(dim_N_6 @ W1 + B1)
 logits = hidden @ W2 + B2
 loss2 = F.cross_entropy(logits, Ytr)
 print(loss2)
 
-dim_N_6_dev = C[Xdev].view(-1, 6)
+dim_N_6_dev = C[Xdev].view(-1, 30)
 hidden_dev = torch.tanh(dim_N_6_dev @ W1 + B1)
 logits_dev = hidden_dev @ W2 + B2
 loss_dev = F.cross_entropy(logits_dev, Ydev)
 print(loss_dev)
 
-plt.plot(lre, lossi)
-plt.xlabel("log10(learning rate)")
+plt.plot(lossi)
+plt.xlabel("training step")
 plt.ylabel("batch loss")
 plt.show()
