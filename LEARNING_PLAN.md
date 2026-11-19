@@ -138,5 +138,6 @@
 
 - [Karpathy：Neural Networks: Zero to Hero 官方课程](https://karpathy.ai/zero-to-hero.html)
 - [官方课程仓库与配套 notebooks](https://github.com/karpathy/nn-zero-to-hero)
+- 相关论文记录：`PAPERS.md`
 
 视频顺序参考官方目录；学习单元、实验和验收标准根据当前项目制定。后续拓展在完成当前主线后再安排。
