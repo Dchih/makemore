@@ -1,6 +1,6 @@
 # makemore 学习计划与进度
 
-更新日期：2026-11-24
+更新日期：2026-11-25
 
 当前节点：**makemore Part 3 → BatchNorm 前向实现**。
 
@@ -129,10 +129,10 @@
 
 每次结束时更新本区，并同步文件顶部的“当前节点”。
 
-- 当前节点：Part 3，BatchNorm 前向实现。
-- 已验证的理解：前向与 `tanh` 局部导数 `1 - h²`、权重尺度与饱和、`1 / sqrt(fan_in)` 与缩放 `X/W` 反向不等价、`W1/B1/W2/B2` 各自初始化目的与 $\ln(27) \approx 3.2958$ 初始 loss 基线；已理解 BatchNorm 的目的、逐元素 `bngain`（全 1）/ `bnbias`（全 0）初始化与按 batch 维度（`dim=0`）计算统计量。
-- 未解决的问题：`MLP_p3.ipynb` 最后一个 cell 的 `bnstdi` 尚未指定 `dim=0, keepdim=True`，`preact_bn` 尚未接入 `(preact - bnmeani) / bnstdi` 标准化；标准化前后均值/标准差对比、`B1` 冗余关系、训练/推理统计量切换、多层训练诊断尚未验证。
-- 下一步：在 `MLP_p3.ipynb` 最后一个 cell 补齐 `bnstdi` 与标准化前向公式，先预测再验证标准化前后沿 `dim=0` 的均值/标准差，随后验证 `B1` 的冗余关系。
+- 当前节点：Part 3，BatchNorm 前向实现（待收尾验收）。
+- 已验证的理解：前向与 `tanh` 局部导数 `1 - h²`、权重尺度与饱和、`1 / sqrt(fan_in)` 与缩放 `X/W` 反向不等价、`W1/B1/W2/B2` 各自初始化目的与 $\ln(27) \approx 3.2958$ 初始 loss 基线；已实现 BatchNorm 前向标准化（`dim=0, keepdim=True`）并验证未缩放 `W1` 下 `tanh` 饱和率从 58.28% 降至 0.55%，且通过 `preact = dim_batch @ W1 + 100` 与 `dim_batch @ W1` 对照验证前置偏置在前向会被减均值抵消。
+- 未解决的问题：待补充 `B1.grad` 为 0 vs `bnbias.grad` 非零的反向对照，并由用户用自己的话总结 `bngain`、`bnbias` 的用途后即可验收第 5 项；训练/推理统计量切换与多层训练诊断尚未开始。
+- 下一步：确认 `B1.grad` 与 `bngain`/`bnbias` 用途以完成第 5 项打勾，随后进入第 6 项（训练 batch 统计量 vs 评估/生成 running 统计量）。
 
 ## 参考路线
 
